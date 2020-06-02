@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
+from torch.distributions import Categorical
 import gym
 
 class Policy(nn.Module):
@@ -17,14 +18,14 @@ class Policy(nn.Module):
         super(Policy, self).__init__()
 
         self.fc1 = nn.Linear(input_size, 10)
-        self.fc2 = nn.Linear(10, 10)
+        #self.fc2 = nn.Linear(10, 10)
         self.fc3 = nn.Linear(10, output_size)
         self.softmax = nn.Softmax(dim=-1)
 
     def forward(self, x):
 
         x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
+        #x = F.relu(self.fc2(x))
         x = self.fc3(x)
         x = self.softmax(x)
 
@@ -40,16 +41,14 @@ class Critic(nn.Module):
 
         super(Critic, self).__init__()
 
-        self.fc = nn.Linear(input_size, 1)
-
         self.fc1 = nn.Linear(input_size, 10)
-        self.fc2 = nn.Linear(10, 10)
+        #self.fc2 = nn.Linear(10, 10)
         self.fc3 = nn.Linear(10, 1)
 
     def forward(self, x):
 
         x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
+        #x = F.relu(self.fc2(x))
         x = self.fc3(x)
 
         return x
@@ -76,23 +75,56 @@ class PPO():
         self.eps = eps
 
 
-        self.net = FCNet(obs_size)
-        self.pi = Policy(obs_size, act_size, self.net)
-        self.critic = Critic(obs_size, self.net)
+        self.pi = Policy(obs_size, act_size)
+        self.critic = Critic(obs_size)
 
         self.optimizer_pi = torch.optim.Adam(self.pi.parameters(), lr=0.005)
         self.optimizer_critic = torch.optim.Adam(self.critic.parameters(), lr=0.005)
 
-    def sample(self, pi):
+
+    def sample(self, pi, n):
         """
         Make an state, action, reward, state observation.
         """
-        observation1 = self.env.reset()
-        observation1 = Variable(torch.from_numpy(observation1), requires_grad=False).detach()
-        action = torch.argmax(self.pi(observation1.float())) 
-        observation2, reward, done, info = self.env.step(action.detach().numpy())
+        obs = []
+        rewards = []
+        actions = []
+        observation = self.env.reset()
+        #observation = Variable(torch.from_numpy(observation), requires_grad=False).detach()
+        obs.append(observation)
 
-        return observation1, action, reward, observation2
+        for _ in range(n):
+
+            #action = torch.argmax(self.pi(observation.float())) 
+            action = torch.argmax(self.pi(Variable(torch.from_numpy(observation), requires_grad=False).float())) 
+
+            actions.append(action)
+            observation, reward, done, info = self.env.step(action.detach().numpy())
+            #observation = Variable(torch.from_numpy(observation), requires_grad=False).detach()
+            obs.append(observation)
+            rewards.append(reward)
+
+            if done:
+                break
+
+
+        return Variable(torch.tensor(obs).float(), requires_grad=False), Variable(torch.tensor(rewards).float(), requires_grad=False), Variable(torch.tensor(actions).float(), requires_grad=False)
+
+
+    def get_advantages(self, values, rewards):
+
+        #est_value = []
+        #advantages = torch.tensor([])
+        advantages = []
+        for i in reversed(range(rewards.shape[0])):
+            gae = rewards[i] + self.gamma * values[i+1] - values[i]
+
+            
+            advantages.append(gae)
+            #advantages = torch.cat((advantages, torch.tensor([gae])))
+            #est_value.insert(0, gae + values[i])
+
+        return advantages#torch.tensor(advantages)#, torch.FloatTensor(est_value)
 
     def prob(self, policy, observation, action):
 
@@ -115,20 +147,23 @@ class PPO():
         Calculate CLIP loss from paper
         """
 
-        loss1 = ratio * advantage
-        loss2 = torch.clamp(ratio, 1-self.eps, 1+self.eps) * advantage
+        loss1 = torch.dot(ratio, advantage)
+        loss2 = torch.dot(torch.clamp(ratio, 1-self.eps, 1+self.eps), advantage)
 
-        return min(loss1, loss2)
+        return torch.min(loss1, loss2)
 
-    def calculate_loss(self, policy, advantage, obs, act, prob_old):
+    def calculate_loss(self, policy, advantage, obs, actions, log_probs_old):
 
         """
         Calcuate the total actor loss
         """
 
-        r = self.prob(policy, obs, act) / prob_old
-        probs = self.pi(obs.float())
-        return self.L_CLIP_loss(r, advantage) - 1 * torch.mean(probs * torch.log(probs + 1e-10))
+        new_probs = Categorical(self.pi(obs[:-1]))
+        log_probs = new_probs.log_prob(actions)
+
+        ratio = torch.exp(log_probs - log_probs_old)
+
+        return self.L_CLIP_loss(ratio, advantage) - 1 * new_probs.entropy().mean()#torch.mean(probs * torch.log(probs + 1e-10))
 
 
     def step(self):
@@ -136,22 +171,35 @@ class PPO():
         Take a single step of the PPO update
         """
         #sample stata, action, reward, state
-        observation1, action, reward, observation2 = self.sample(self.pi)
-        observation2 = Variable(torch.from_numpy(observation2)).detach()
-        #calculate advantage and TD estimate
-        val_1 = self.critic(observation1.float())
-        val_2 = self.critic(observation2.float())
-        advantage_est = reward + self.gamma * val_1 - val_2
+        #observation1, action, reward, observation2 = self.sample(self.pi)
+        obs, actions, rewards = self.sample(self.pi, 10)
+        for _ in range(1):
+            values = self.critic(obs)
+            probs = Categorical(self.pi(obs[:-1]))
+            log_probs = probs.log_prob(actions)
 
-        #critic loss
-        critic_loss = (self.alpha * advantage_est)**2
-        
-        prob_old = Variable(self.prob(self.pi, observation1, action)).detach()
-        actor_loss = self.calculate_loss(self.pi, advantage_est.detach(), observation1, action, prob_old)
-        
-        self.optimizer_pi.zero_grad()
-        actor_loss.backward()
 
-        self.optimizer_critic.zero_grad()
-        critic_loss.backward()
+            #observation2 = Variable(torch.from_numpy(observation2)).detach()
+            #calculate advantage and TD estimate
+            #val_1 = self.critic(observation1.float())
+            #val_2 = self.critic(observation2.float())
+            #advantage_est = reward + self.gamma * val_1 - val_2
+
+            advantages = self.get_advantages(values, rewards)
+
+            advantages = Variable(torch.Tensor(advantages), requires_grad=True)
+            #critic loss
+            critic_loss = self.alpha * torch.norm(advantages)**2
+            
+            #prob_old = Variable(self.prob(self.pi, obs, action)).detach()
+
+            
+
+            actor_loss = self.calculate_loss(self.pi, advantages, obs, actions, log_probs)
+            
+            self.optimizer_pi.zero_grad()
+            actor_loss.backward()
+
+            self.optimizer_critic.zero_grad()
+            critic_loss.backward()
 
