@@ -76,10 +76,10 @@ class PPO():
 
         self.config: Config = config
 
-        self.gamma: float = self.config.ppo["gamma"]
-        self.alpha: float = self.config.ppo["alpha"]
+        self.gamma: float = self.config.ppo["discount_factor"]
         self.eps: float = self.config.ppo["epsilon"]
-
+        
+        self.alpha: float = self.config.actor_critic["critic"]["alpha"]
         self.pi = Policy(self.obs_size, self.act_size)
         self.critic = Critic(self.obs_size)
         self.optimizer_pi = torch.optim.Adam(
