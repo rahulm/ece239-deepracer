@@ -1,10 +1,15 @@
+from typing import Dict
+
+import gym
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 from torch.distributions import Categorical
-import gym
+
+from config_utils import Config
+
 
 class Policy(nn.Module):
     """
@@ -56,30 +61,35 @@ class Critic(nn.Module):
 
 
 class PPO():
-
     """
     A class that runs Proximal Policy Optimization on an Openai gym
     envoriment. 
     """
-
-    def __init__(self, env, obs_size, act_size, eps, gamma, alpha):
-
+    
+    def __init__(self, env, config: Config):
+        
         self.env = env
 
-        self.act_size = act_size
-        self.obs_size = obs_size
-        self.values = torch.zeros(obs_size)
+        self.act_size = self.env.action_space.n
+        self.obs_size = np.prod(self.env.observation_space.shape)
+        self.values = torch.zeros(self.obs_size)
 
-        self.gamma = gamma
-        self.alpha = alpha
-        self.eps = eps
+        self.config: Config = config
 
+        self.gamma: float = self.config.ppo["gamma"]
+        self.alpha: float = self.config.ppo["alpha"]
+        self.eps: float = self.config.ppo["epsilon"]
 
-        self.pi = Policy(obs_size, act_size)
-        self.critic = Critic(obs_size)
-
-        self.optimizer_pi = torch.optim.Adam(self.pi.parameters(), lr=0.005)
-        self.optimizer_critic = torch.optim.Adam(self.critic.parameters(), lr=0.005)
+        self.pi = Policy(self.obs_size, self.act_size)
+        self.critic = Critic(self.obs_size)
+        self.optimizer_pi = torch.optim.Adam(
+            self.pi.parameters(),
+            lr=self.config.actor_critic["actor"]["learning_rate"]
+        )
+        self.optimizer_critic = torch.optim.Adam(
+            self.critic.parameters(),
+            lr=self.config.actor_critic["critic"]["learning_rate"]
+        )
 
 
     def sample(self, pi, n):
@@ -202,4 +212,3 @@ class PPO():
 
             self.optimizer_critic.zero_grad()
             critic_loss.backward()
-
