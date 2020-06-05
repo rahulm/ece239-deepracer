@@ -22,39 +22,37 @@ An example of how to use this Config class:
   """
   KEY_PPO = "ppo_hyperparameters"
   KEY_ACTOR_CRITIC = "actor_critic"
+  KEY_TRAINING = "training"
+
+  # Start: for mypy
+  has_ppo: bool = False
+  ppo: Dict
+  has_actor_critic: bool = False
+  actor_critic: Dict
+  has_training: bool = False
+  training: Dict
+  # End: for mypy
 
   def __init__(self, config_dict: Dict) -> None:
     self.config_dict: Dict = config_dict
     
-    if self.KEY_PPO in self.config_dict:
-      self.__add_field("ppo", self.config_dict[self.KEY_PPO])
-
-      if self.KEY_ACTOR_CRITIC in self.config_dict[self.KEY_PPO]:
-        self.__add_field("actor_critic", self.config_dict[self.KEY_PPO][self.KEY_ACTOR_CRITIC])
-      else:
-        self.__mark_field_nonexistent("actor_critic")
-
-    else:
-      self.__mark_field_nonexistent("ppo")
+    self.__add_field("ppo", self.config_dict.get(self.KEY_PPO, None))
+    
+    self.__add_field("actor_critic",
+      self.ppo.get(self.KEY_ACTOR_CRITIC, None) if self.has_ppo else None
+    )
+    
+    self.__add_field("training", self.config_dict.get(self.KEY_TRAINING, None))
 
   def __add_field(self, field_name: Text, field_value: Any) -> None:
     setattr(self, field_name, field_value)
-    setattr(self, "has_{}".format(field_name), True)
+    setattr(self, "has_{}".format(field_name), True if field_value else False)
   
   def __mark_field_nonexistent(self, field_name: Text) -> None:
     setattr(self, "has_{}".format(field_name), False)
 
   def __repr__(self) -> Text:
     return str(self.config_dict)
-  
-  # Start: for mypy
-  has_ppo: bool
-  ppo: Dict
-  has_actor_critic: bool
-  actor_critic: Dict
-  has_training: bool
-  training: Dict
-  # End: for mypy
 
 
 def get_config_dict(filename: Text) -> Dict:
