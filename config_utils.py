@@ -46,6 +46,13 @@ An example of how to use this Config class:
 
   def __repr__(self) -> Text:
     return str(self.config_dict)
+  
+  # Start: for mypy
+  has_ppo: bool
+  ppo: Dict
+  has_actor_critic: bool
+  actor_critic: Dict
+  # End: for mypy
 
 
 def get_config_dict(filename: Text) -> Dict:
