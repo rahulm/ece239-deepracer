@@ -1,0 +1,18 @@
+{
+  "ppo_hyperparameters": {
+    "observation_space_size" : 4,
+    "action_space_size" : 2,
+    "epsilon" : 0.2,
+    "gamma" : 0.9,
+    "alpha" : 0.75,
+
+    "actor_critic" : {
+      "actor" : {
+        "learning_rate" : 0.005
+      },
+      "critic" : {
+        "learning_rate" : 0.005
+      }
+    }
+  }
+}
