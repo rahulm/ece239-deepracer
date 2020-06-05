@@ -1,0 +1,26 @@
+{
+  "ppo_hyperparameters": {
+    "horizon" : 128,
+    "adam_stepsize" : 2.5e-4,
+    "discount_factor" : 0.99,
+    "gae_paramater" : 0.95,
+    "epsilon" : 0.1,
+    "vf_ceof" : 1,
+    "entropy_coef" : 0.01,
+
+    "actor_critic" : {
+      "actor" : {
+        "learning_rate" : 0.005
+      },
+      "critic" : {
+        "learning_rate" : 0.005,
+        "alpha" : 0.75
+      }
+    }
+  },
+
+  "training" : {
+    "num_epochs" : 3,
+    "minibatch_size" : 256
+  }
+}
