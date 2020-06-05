@@ -52,6 +52,8 @@ An example of how to use this Config class:
   ppo: Dict
   has_actor_critic: bool
   actor_critic: Dict
+  has_training: bool
+  training: Dict
   # End: for mypy
 
 
