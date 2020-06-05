@@ -76,6 +76,7 @@ class PPO():
 
         self.config: Config = config
 
+        self.horizon: int = self.config.ppo.get("horizon", 10)
         self.gamma: float = self.config.ppo["discount_factor"]
         self.eps: float = self.config.ppo["epsilon"]
         
@@ -182,7 +183,8 @@ class PPO():
         """
         #sample stata, action, reward, state
         #observation1, action, reward, observation2 = self.sample(self.pi)
-        obs, actions, rewards = self.sample(self.pi, 10)
+        # obs, actions, rewards = self.sample(self.pi, 10)
+        obs, actions, rewards = self.sample(self.pi, self.horizon)
         for _ in range(1):
             values = self.critic(obs)
             probs = Categorical(self.pi(obs[:-1]))
