@@ -79,6 +79,11 @@ class PPO():
         self.horizon: int = self.config.ppo.get("horizon", 10)
         self.gamma: float = self.config.ppo["discount_factor"]
         self.eps: float = self.config.ppo["epsilon"]
+
+        self.entropy_coef: float = self.config.ppo.get("entropy_coef", 1)
+        self.vf_coef: float = self.config.ppo.get("vf_coef", 1)
+
+        self.gae_parameter: float = self.config.ppo.get("gae_parameter", 1)
         
         self.alpha: float = self.config.actor_critic["critic"]["alpha"]
         self.pi = Policy(self.obs_size, self.act_size)
@@ -174,7 +179,7 @@ class PPO():
 
         ratio = torch.exp(log_probs - log_probs_old)
 
-        return self.L_CLIP_loss(ratio, advantage) - 1 * new_probs.entropy().mean()#torch.mean(probs * torch.log(probs + 1e-10))
+        return self.L_CLIP_loss(ratio, advantage) - self.entropy_coef * new_probs.entropy().mean()#torch.mean(probs * torch.log(probs + 1e-10))
 
 
     def step(self):
