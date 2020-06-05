@@ -3,9 +3,9 @@
     "horizon" : 128,
     "adam_stepsize" : 2.5e-4,
     "discount_factor" : 0.99,
-    "gae_paramater" : 0.95,
+    "gae_parameter" : 0.95,
     "epsilon" : 0.1,
-    "vf_ceof" : 1,
+    "vf_coef" : 1,
     "entropy_coef" : 0.01,
 
     "actor_critic" : {

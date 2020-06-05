@@ -4,7 +4,7 @@
     "horizon" : 2048,
     "adam_stepsize" : 3e-4,
     "discount_factor" : 0.99,
-    "gae_paramater" : 0.95,
+    "gae_parameter" : 0.95,
 
     "actor_critic" : {
       "actor" : {
