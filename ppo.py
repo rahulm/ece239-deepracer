@@ -1,63 +1,12 @@
 from typing import Dict, List, Text
 
-import gym
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch.autograd import Variable
 from torch.distributions import Categorical
 
 from config_utils import Config
-
-
-class Policy(nn.Module):
-    """
-    A simple neural network whose input is an
-    observation/state and output is the action
-    probabilities.
-    """
-
-    def __init__(self, input_size, output_size):
-
-        super(Policy, self).__init__()
-
-        self.fc1 = nn.Linear(input_size, 30)
-        #self.fc2 = nn.Linear(10, 10)
-        self.fc3 = nn.Linear(30, output_size)
-        self.softmax = nn.Softmax(dim=-1)
-
-    def forward(self, x):
-
-        x = F.relu(self.fc1(x))
-        #x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        x = self.softmax(x)
-
-        return x
-
-class Critic(nn.Module):
-    """
-    A simple neural network whose input is an
-    observation/state and output is the value.
-    """
-
-    def __init__(self, input_size):
-
-        super(Critic, self).__init__()
-
-        self.fc1 = nn.Linear(input_size, 30)
-        #self.fc2 = nn.Linear(10, 10)
-        self.fc3 = nn.Linear(30, 1)
-
-    def forward(self, x):
-
-        x = F.relu(self.fc1(x))
-        #x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-
-        return x
-
 
 
 class PPO():
@@ -67,7 +16,13 @@ class PPO():
     envoriment. 
     """
 
-    def __init__(self, env, config: Config, no_cuda: bool = False):
+    def __init__(self,
+        env,
+        config: Config,
+        actor: nn.Module,
+        critic: nn.Module,
+        no_cuda: bool = False
+    ):
         
         # Setting up cuda, if needed
         self.device_name: Text
@@ -95,8 +50,8 @@ class PPO():
         self.delta: float = self.config.ppo.get("delta", 1)
         
         self.alpha: float = self.config.actor_critic["critic"]["alpha"]
-        self.pi = Policy(self.obs_size, self.act_size).to(self.torch_device)
-        self.critic = Critic(self.obs_size).to(self.torch_device)
+        self.pi = actor.to(self.torch_device)
+        self.critic = critic.to(self.torch_device)
         self.optimizer_pi = torch.optim.Adam(
             self.pi.parameters(),
             lr=self.config.actor_critic["actor"]["learning_rate"]
@@ -106,7 +61,7 @@ class PPO():
             lr=self.config.actor_critic["critic"]["learning_rate"]
         )
 
-    def sample(self, pi, n):
+    def sample(self, n):
         """
         Make an state, action, reward, state observation.
         """
@@ -130,8 +85,7 @@ class PPO():
 
             actions.append(action)
             observation, reward, done, info = self.env.step(action.cpu().numpy())
-            # observation, reward, done, info = self.env.step(action.detach().numpy())
-            #observation = Variable(torch.from_numpy(observation), requires_grad=False).detach()
+            # observation, reward, done, info = self.env.step(action.cpu().detach().numpy())
             obs.append(observation)
             rewards.append(reward)
 
@@ -225,7 +179,7 @@ class PPO():
         """
         #sample stata, action, reward, state
         #observation1, action, reward, observation2 = self.sample(self.pi)
-        obs, rewards, actions = self.sample(self.pi, self.horizon)
+        obs, rewards, actions = self.sample(self.horizon)
         #print(actions)
         #print(obs)
 
@@ -289,4 +243,3 @@ class PPO():
             self.optimizer_critic.step()
         
         return loss_vals
-
