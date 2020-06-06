@@ -1,4 +1,4 @@
-from typing import Dict, Text
+from typing import Dict, List, Text
 
 import gym
 import numpy as np
@@ -236,6 +236,7 @@ class PPO():
         values = self.critic(obs)
         advantages, returns = self.get_advantages(values.detach(), rewards)
 
+        loss_vals: List[float] = []
 
         for _ in range(10):
 
@@ -275,10 +276,7 @@ class PPO():
             
 
             actor_loss = -self.calculate_loss(advantages.detach(), obs, actions, log_probs.detach())
-            #if _ == 0:
-            #print(actor_loss)
-            #print(actor_loss)
-            #print(actor_loss)
+            loss_vals.append(-(actor_loss.item()))
             
 
             self.optimizer_pi.zero_grad()
@@ -289,4 +287,6 @@ class PPO():
             self.optimizer_critic.zero_grad()
             critic_loss.backward()
             self.optimizer_critic.step()
+        
+        return loss_vals
 
