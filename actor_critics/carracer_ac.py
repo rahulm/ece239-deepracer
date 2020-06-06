@@ -2,17 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-
-def get_action_space_size(env):
-  act_size = env.action_space.n  
-  return act_size
-
-
-def get_observation_space_size(env):
-  obs_size = np.prod(env.observation_space.shape)
-  return obs_size
-
+from actor_critics import ac_utils
 
 class Actor(nn.Module):
   """
@@ -25,10 +15,9 @@ class Actor(nn.Module):
 
     super(Actor, self).__init__()
 
-    input_size = get_observation_space_size(env)
-    output_size = get_action_space_size(env)
+    input_size = ac_utils.get_generic_space_size(env.action_space)
+    output_size = ac_utils.get_generic_space_size(env.observation_space)
 
-	self.fc0 = nn.Flatten()
     self.fc1 = nn.Linear(input_size, 30)
     #self.fc2 = nn.Linear(10, 10)
     self.fc3 = nn.Linear(30, output_size)
@@ -53,7 +42,7 @@ class Critic(nn.Module):
 
     super(Critic, self).__init__()
 
-    input_size = get_observation_space_size(env)
+    input_size = ac_utils.get_generic_space_size(env.action_space)
 
     self.fc1 = nn.Linear(input_size, 30)
     #self.fc2 = nn.Linear(10, 10)

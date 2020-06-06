@@ -7,7 +7,7 @@ from torch.autograd import Variable
 from torch.distributions import Categorical
 
 from config_utils import Config
-
+from actor_critics import ac_utils
 
 class PPO():
 
@@ -34,7 +34,8 @@ class PPO():
         
         self.env = env
 
-        self.act_size = self.env.action_space.n
+        self.act_size = ac_utils.get_generic_space_size(self.env.action_space)
+        # self.act_size = self.env.action_space.n
         self.obs_size = np.prod(self.env.observation_space.shape)
         self.values = torch.zeros(self.obs_size)
 
@@ -71,6 +72,7 @@ class PPO():
         observation = self.env.reset()
         #observation = Variable(torch.from_numpy(observation), requires_grad=False).detach()
         obs.append(observation)
+        observation = observation.copy()
 
         for i in range(n):
 
