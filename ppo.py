@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Text
 
 import gym
 import numpy as np
@@ -67,7 +67,15 @@ class PPO():
     envoriment. 
     """
 
-    def __init__(self, env, config: Config):
+    def __init__(self, env, config: Config, no_cuda: bool = False):
+        
+        # Setting up cuda, if needed
+        self.device_name: Text
+        if no_cuda or (not torch.cuda.is_available()):
+            self.device_name = "cpu"
+        else:
+            self.device_name = "cuda:0"
+        self.torch_device = torch.device(self.device_name)
         
         self.env = env
 
@@ -87,8 +95,8 @@ class PPO():
         self.delta: float = self.config.ppo.get("delta", 1)
         
         self.alpha: float = self.config.actor_critic["critic"]["alpha"]
-        self.pi = Policy(self.obs_size, self.act_size)
-        self.critic = Critic(self.obs_size)
+        self.pi = Policy(self.obs_size, self.act_size).to(self.torch_device)
+        self.critic = Critic(self.obs_size).to(self.torch_device)
         self.optimizer_pi = torch.optim.Adam(
             self.pi.parameters(),
             lr=self.config.actor_critic["actor"]["learning_rate"]
@@ -112,10 +120,17 @@ class PPO():
         for i in range(n):
 
             #action = torch.argmax(self.pi(observation.float())) 
-            action = torch.argmax(self.pi(Variable(torch.from_numpy(observation), requires_grad=False).float())) 
+            action = torch.argmax(
+                self.pi(Variable(
+                        torch.from_numpy(observation).to(self.torch_device),
+                        requires_grad=False
+                    ).float()
+                )
+            )
 
             actions.append(action)
-            observation, reward, done, info = self.env.step(action.detach().numpy())
+            observation, reward, done, info = self.env.step(action.cpu().numpy())
+            # observation, reward, done, info = self.env.step(action.detach().numpy())
             #observation = Variable(torch.from_numpy(observation), requires_grad=False).detach()
             obs.append(observation)
             rewards.append(reward)
@@ -123,9 +138,11 @@ class PPO():
             if done:
                 break
 
-        rewards = Variable(torch.tensor(rewards).float(), requires_grad=False)
+        rewards_var = Variable(torch.tensor(rewards).float(), requires_grad=False).to(self.torch_device)
+        obs_var = Variable(torch.tensor(obs).float(), requires_grad=False).to(self.torch_device)
+        actions_var = Variable(torch.tensor(actions).float(), requires_grad=False).to(self.torch_device)
 
-        return Variable(torch.tensor(obs).float(), requires_grad=False), rewards, Variable(torch.tensor(actions).float(), requires_grad=False)
+        return obs_var, rewards_var, actions_var
 
 
     def get_advantages(self, values, rewards):
@@ -152,8 +169,8 @@ class PPO():
             #advantages = torch.cat((advantages, torch.tensor([gae])))
             #est_value.insert(0, gae + values[i])
        
-        returns = torch.tensor(returns)
-        advantages = torch.transpose(torch.stack(advantages, dim=0), 0, 1)
+        returns = torch.tensor(returns).to(self.torch_device)
+        advantages = torch.transpose(torch.stack(advantages, dim=0), 0, 1).to(self.torch_device)
 
         return advantages, returns #returns#torch.tensor(advantages)#, torch.FloatTensor(est_value)
 
@@ -244,7 +261,8 @@ class PPO():
 
             #critic loss
             #critic_loss = self.alpha * torch.norm(advantages)**2
-            critic_loss = self.alpha *  torch.square((values-returns.detach())).mean()
+            # critic_loss = self.alpha *  torch.square((values-returns.detach())).mean()
+            critic_loss = self.alpha * torch.square(values-returns).mean()
 
             #if _ == 0:
             #    print(critic_loss)
