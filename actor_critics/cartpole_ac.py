@@ -28,7 +28,6 @@ class Actor(nn.Module):
     input_size = get_observation_space_size(env)
     output_size = get_action_space_size(env)
 
-	self.fc0 = nn.Flatten()
     self.fc1 = nn.Linear(input_size, 30)
     #self.fc2 = nn.Linear(10, 10)
     self.fc3 = nn.Linear(30, output_size)
