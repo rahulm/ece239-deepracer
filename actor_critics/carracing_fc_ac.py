@@ -18,13 +18,14 @@ class Actor(nn.Module):
     input_size = ac_utils.get_generic_space_size(env.observation_space)
     output_size = ac_utils.get_generic_space_size(env.action_space)
 
+    self.fl = nn.Flatten()
     self.fc1 = nn.Linear(input_size, 30)
     #self.fc2 = nn.Linear(10, 10)
     self.fc3 = nn.Linear(30, output_size)
     self.softmax = nn.Softmax(dim=-1)
 
   def forward(self, x):
-
+    x = self.fl(x)
     x = F.relu(self.fc1(x))
     #x = F.relu(self.fc2(x))
     x = self.fc3(x)
@@ -44,12 +45,14 @@ class Critic(nn.Module):
 
     input_size = ac_utils.get_generic_space_size(env.observation_space)
 
+    self.fl = nn.Flatten()
     self.fc1 = nn.Linear(input_size, 30)
     #self.fc2 = nn.Linear(10, 10)
     self.fc3 = nn.Linear(30, 1)
 
   def forward(self, x):
 
+    x = self.fl(x)
     x = F.relu(self.fc1(x))
     #x = F.relu(self.fc2(x))
     x = self.fc3(x)

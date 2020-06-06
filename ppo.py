@@ -1,5 +1,6 @@
 from typing import Dict, List, Text
 
+import gym
 import numpy as np
 import torch
 import torch.nn as nn
@@ -34,9 +35,11 @@ class PPO():
         
         self.env = env
 
+        self.act_discrete: bool = isinstance(self.env.action_space, gym.spaces.Discrete)
+        self.obs_discrete: bool = isinstance(self.env.observation_space, gym.spaces.Discrete)
+
         self.act_size = ac_utils.get_generic_space_size(self.env.action_space)
-        # self.act_size = self.env.action_space.n
-        self.obs_size = np.prod(self.env.observation_space.shape)
+        self.obs_size = ac_utils.get_generic_space_size(self.env.observation_space)
         self.values = torch.zeros(self.obs_size)
 
         self.config: Config = config
@@ -70,41 +73,45 @@ class PPO():
         rewards = []
         actions = []
         observation = self.env.reset()
-        #observation = Variable(torch.from_numpy(observation), requires_grad=False).detach()
         obs.append(observation)
         observation = observation.copy()
 
         for i in range(n):
 
-            #action = torch.argmax(self.pi(observation.float())) 
-            action = torch.argmax(
-                self.pi(Variable(
-                        torch.from_numpy(observation).to(self.torch_device),
-                        requires_grad=False
-                    ).float()
+            if self.act_discrete:
+                action = torch.argmax(
+                    self.pi(Variable(
+                            torch.from_numpy(observation.copy()),
+                            requires_grad=False
+                        ).to(self.torch_device).float()
+                    )
                 )
-            )
+            else:
+                action = self.pi(
+                    torch.unsqueeze(
+                        torch.from_numpy(observation.copy()),
+                        0
+                    ).to(self.torch_device).float()
+                )
+                action = torch.squeeze(action, 0)
 
             actions.append(action)
             observation, reward, done, info = self.env.step(action.cpu().detach().numpy())
-            # observation, reward, done, info = self.env.step(action.cpu().detach().numpy())
             obs.append(observation)
             rewards.append(reward)
 
             if done:
                 break
 
-        rewards_var = Variable(torch.tensor(rewards).float(), requires_grad=False).to(self.torch_device)
-        obs_var = Variable(torch.tensor(obs).float(), requires_grad=False).to(self.torch_device)
-        actions_var = Variable(torch.tensor(actions).float(), requires_grad=False).to(self.torch_device)
+        rewards_var = torch.tensor(rewards, requires_grad=False).to(self.torch_device)
+        obs_var = torch.tensor(obs, requires_grad=False).float().to(self.torch_device)
+        actions_var = torch.stack(actions).to(self.torch_device)
 
         return obs_var, rewards_var, actions_var
 
 
     def get_advantages(self, values, rewards):
 
-        #est_value = []
-        #advantages = torch.tensor([])
         advantages = []
         returns = [1]
         ret = 1
@@ -114,21 +121,12 @@ class PPO():
             gae = delta + self.gamma * self.delta * gae
             ret = rewards[i] + self.gamma * ret
             returns.insert(0, ret)
-
-            #if i == 0:
-            #    advantages = gae
-            #else:
-            #    advantages = torch.cat([advantages, gae], dim=1)
-            #advantages.append(gae)
             advantages.insert(0, gae)
-            #returns.append(gae + values[i])
-            #advantages = torch.cat((advantages, torch.tensor([gae])))
-            #est_value.insert(0, gae + values[i])
        
         returns = torch.tensor(returns).to(self.torch_device)
         advantages = torch.transpose(torch.stack(advantages, dim=0), 0, 1).to(self.torch_device)
 
-        return advantages, returns #returns#torch.tensor(advantages)#, torch.FloatTensor(est_value)
+        return advantages, returns
 
     def prob(self, policy, observation, action):
 
@@ -169,23 +167,16 @@ class PPO():
         
         clip_loss = self.L_CLIP_loss(ratio, advantage)
         entropy = new_probs.entropy()
-        #print(log_probs)
-        #print(entropy)
-        #print(clip_loss)
-        return (clip_loss + self.entropy_coef * entropy).mean()#torch.mean(probs * torch.log(probs + 1e-10))
+
+        return (clip_loss + self.entropy_coef * entropy).mean()
 
 
     def step(self):
         """
         Take a single step of the PPO update
         """
-        #sample stata, action, reward, state
-        #observation1, action, reward, observation2 = self.sample(self.pi)
         obs, rewards, actions = self.sample(self.horizon)
-        #print(actions)
-        #print(obs)
 
-        #print(self.pi(obs[:-1]))
         rewards = rewards.detach()
         probs = Categorical(self.pi(obs[:-1]))
         log_probs = probs.log_prob(actions)
@@ -195,49 +186,17 @@ class PPO():
         loss_vals: List[float] = []
 
         for _ in range(10):
-
-            #observation2 = Variable(torch.from_numpy(observation2)).detach()
-            #calculate advantage and TD estimate
-            #val_1 = self.critic(observation1.float())
-            #val_2 = self.critic(observation2.float())
-            #advantage_est = reward + self.gamma * val_1 - val_2
-
-            #probs = Categorical(self.pi(obs[:-1]))
-            #log_probs = probs.log_prob(actions)
             values = self.critic(obs)
             __, returns = self.get_advantages(values.detach(), rewards)
             values = torch.reshape(values, (-1,))
 
-
-            #if _ == 0:
-            #    print("values: ", values)
-            #    print("advantages: ", advantages)
-            #    print("returns: ", returns)
-            #advantages = Variable(torch.Tensor(advantages))
-            #values = Variable(values, requires_grad=False)
-
-            #critic loss
-            #critic_loss = self.alpha * torch.norm(advantages)**2
-            # critic_loss = self.alpha *  torch.square((values-returns.detach())).mean()
             critic_loss = self.alpha * torch.square(values-returns).mean()
-
-            #if _ == 0:
-            #    print(critic_loss)
-
-            
-            #prob_old = Variable(self.prob(self.pi, obs, action)).detach()
-
-            #advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
-            #print(advantages)
-            
-
             actor_loss = -self.calculate_loss(advantages.detach(), obs, actions, log_probs.detach())
             loss_vals.append(-(actor_loss.item()))
             
 
             self.optimizer_pi.zero_grad()
             actor_loss.backward()
-            #print(self.pi.fc1.weight.grad)
             self.optimizer_pi.step()
 
             self.optimizer_critic.zero_grad()
