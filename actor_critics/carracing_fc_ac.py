@@ -15,8 +15,8 @@ class Actor(nn.Module):
 
     super(Actor, self).__init__()
 
-    input_size = ac_utils.get_generic_space_size(env.action_space)
-    output_size = ac_utils.get_generic_space_size(env.observation_space)
+    input_size = ac_utils.get_generic_space_size(env.observation_space)
+    output_size = ac_utils.get_generic_space_size(env.action_space)
 
     self.fc1 = nn.Linear(input_size, 30)
     #self.fc2 = nn.Linear(10, 10)
@@ -42,7 +42,7 @@ class Critic(nn.Module):
 
     super(Critic, self).__init__()
 
-    input_size = ac_utils.get_generic_space_size(env.action_space)
+    input_size = ac_utils.get_generic_space_size(env.observation_space)
 
     self.fc1 = nn.Linear(input_size, 30)
     #self.fc2 = nn.Linear(10, 10)
