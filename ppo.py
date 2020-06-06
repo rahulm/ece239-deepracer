@@ -84,7 +84,7 @@ class PPO():
             )
 
             actions.append(action)
-            observation, reward, done, info = self.env.step(action.cpu().numpy())
+            observation, reward, done, info = self.env.step(action.cpu().detach().numpy())
             # observation, reward, done, info = self.env.step(action.cpu().detach().numpy())
             obs.append(observation)
             rewards.append(reward)
