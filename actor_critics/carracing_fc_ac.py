@@ -2,16 +2,22 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 from actor_critics import ac_utils
+
+from .envs.env_carracing_simple import CarRacingSimple
+
 
 class Actor(nn.Module):
   """
   A simple neural network whose input is an
   observation/state and output is the action
   probabilities.
+
+  NOTE: This model should only accept a CarRacingSimple env as input.
   """
 
-  def __init__(self, env):
+  def __init__(self, env: CarRacingSimple):
 
     super(Actor, self).__init__()
 
@@ -58,9 +64,11 @@ class Critic(nn.Module):
   """
   A simple neural network whose input is an
   observation/state and output is the value.
+
+  NOTE: This model should only accept a CarRacingSimple env as input.
   """
 
-  def __init__(self, env):
+  def __init__(self, env: CarRacingSimple):
 
     super(Critic, self).__init__()
 
