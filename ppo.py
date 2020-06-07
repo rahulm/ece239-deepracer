@@ -17,6 +17,20 @@ class PPO():
     envoriment. 
     """
 
+    # NOTE: may want to move __get_env_space_info into a utils file
+    def __get_env_space_info(self, env_space, metadata_custom_space):
+        if metadata_custom_space:
+            space_discrete = (metadata_custom_space["type"] == "discrete")
+        else:
+            space_discrete = isinstance(env_space, gym.spaces.Discrete)
+        
+        if metadata_custom_space and ("size" in metadata_custom_space):
+            space_size = metadata_custom_space["size"]
+        else:
+            space_size = ac_utils.get_generic_space_size(env_space)
+        
+        return space_discrete, space_size
+
     def __init__(self,
         env,
         config: Config,
@@ -35,11 +49,16 @@ class PPO():
         
         self.env = env
 
-        self.act_discrete: bool = isinstance(self.env.action_space, gym.spaces.Discrete)
-        self.obs_discrete: bool = isinstance(self.env.observation_space, gym.spaces.Discrete)
+        self.act_discrete, self.act_size = self.__get_env_space_info(
+            self.env.action_space,
+            self.env.metadata.get("custom_action_space", None)
+        )
 
-        self.act_size = ac_utils.get_generic_space_size(self.env.action_space)
-        self.obs_size = ac_utils.get_generic_space_size(self.env.observation_space)
+        self.obs_discrete, self.obs_size = self.__get_env_space_info(
+            self.env.observation_space,
+            self.env.metadata.get("custom_observation_space", None)
+        )
+
         self.values = torch.zeros(self.obs_size)
 
         self.config: Config = config
@@ -80,9 +99,9 @@ class PPO():
 
             if self.act_discrete:
                 action = torch.argmax(
-                    self.pi(Variable(
+                    self.pi(torch.unsqueeze(
                             torch.from_numpy(observation.copy()),
-                            requires_grad=False
+                            0
                         ).to(self.torch_device).float()
                     )
                 )
@@ -93,7 +112,8 @@ class PPO():
                         0
                     ).to(self.torch_device).float()
                 )
-                action = torch.squeeze(action, 0)
+            
+            action = torch.squeeze(action, 0)
 
             actions.append(action)
             observation, reward, done, info = self.env.step(action.cpu().detach().numpy())
@@ -193,7 +213,6 @@ class PPO():
             critic_loss = self.alpha * torch.square(values-returns).mean()
             actor_loss = -self.calculate_loss(advantages.detach(), obs, actions, log_probs.detach())
             loss_vals.append(-(actor_loss.item()))
-            
 
             self.optimizer_pi.zero_grad()
             actor_loss.backward()

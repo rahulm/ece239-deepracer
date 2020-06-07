@@ -1,11 +1,14 @@
+import sys
+
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torchvision import transforms
 
 from actor_critics import ac_utils
-
-from .envs.env_carracing_simple import CarRacingSimple
+sys.path.append('..')
+from envs.env_carracing_simple import CarRacingSimple
 
 
 class Actor(nn.Module):
@@ -40,10 +43,13 @@ class Actor(nn.Module):
 
 
   def forward(self, x):
+    # basic manual mapping from [0, 255] to [0, 1]
+    x = torch.true_divide(x, 255.0)
+
     x = self.fl(x)
     x = F.relu(self.fc1(x))
     #x = F.relu(self.fc2(x))
-    x = F.relu(self.fc3(x)(
+    x = F.relu(self.fc3(x))
 
     x1 = self.fc4_1(x)
     x2 = self.fc4_2(x)
@@ -53,11 +59,14 @@ class Actor(nn.Module):
     x2 = self.softmax2(x2)
     x3 = self.softmax3(x3)
     
-    x = []
-    for i in range(27):
-        x.append(x1[i%3] * x2[(i/3)%3] * x3[(i/9)%3)
-
-    x = torch.transpose(torch.stack(x, dim=0), 0, 1).to(self.torch_device)
+    # NOTE: assumes that x is batched
+    num_batches = len(x)
+    xprods = []
+    for b in range(num_batches):
+      xprods.append(torch.cartesian_prod(x1[b], x2[b], x3[b]))
+    xprods = torch.stack(xprods)
+    x = xprods[:, 0] * xprods[:, 1] * xprods[:, 2]
+    
     return x
 
 class Critic(nn.Module):
@@ -80,6 +89,9 @@ class Critic(nn.Module):
     self.fc3 = nn.Linear(30, 1)
 
   def forward(self, x):
+
+    # basic manual mapping from [0, 255] to [0, 1]
+    x = torch.true_divide(x, 255.0)
 
     x = self.fl(x)
     x = F.relu(self.fc1(x))

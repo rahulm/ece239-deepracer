@@ -1,5 +1,6 @@
 from typing import List, Tuple
 
+import numpy as np
 from gym.envs.box2d import CarRacing
 
 
@@ -27,12 +28,24 @@ values, without an image. (TODO IMPLEMENTATION)
 
     self.NUM_ACTIONS: int = len(self.ACTION_MAP)
 
-  def __is_valid_discrete_action(self, action: int) -> bool:
+    self.metadata["custom_action_space"] = {
+      "type": "discrete",
+      "size": self.NUM_ACTIONS
+    }
+
+  def is_valid_discrete_action(self, action: int) -> bool:
     return (
       isinstance(action, int)
       and (action >= 0)
       and (action < self.NUM_ACTIONS)
-    )   
+    )
+  
+  def get_discrete_action(self, action):
+    if isinstance(action, np.ndarray):
+      action = action.item()
+    if not self.is_valid_discrete_action(action):
+      return None
+    return action
 
   def step(self, action):
     """Performs a custom step, converting a discrete action into a continuous
@@ -46,8 +59,9 @@ Parameters:
     if action is None:
       return super().step(action)
 
-    if not self.__is_valid_discrete_action(action):
+    discrete_action = self.get_discrete_action(action)
+    if discrete_action is None:
       raise ValueError("Not a valid discrete action: {}".format(action))
     
-    continuous_action = self.ACTION_MAP[action]
+    continuous_action = self.ACTION_MAP[discrete_action]
     return super().step(continuous_action)
