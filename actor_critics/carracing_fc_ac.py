@@ -21,16 +21,37 @@ class Actor(nn.Module):
     self.fl = nn.Flatten()
     self.fc1 = nn.Linear(input_size, 30)
     #self.fc2 = nn.Linear(10, 10)
-    self.fc3 = nn.Linear(30, output_size)
-    self.softmax = nn.Softmax(dim=-1)
+    self.fc3 = nn.Linear(30, 30)
+
+    self.fc4_1 = nn.Linear(30, 3)
+    self.fc4_2 = nn.Linear(30, 3)
+    self.fc4_3 = nn.Linear(30, 3)
+
+    self.softmax1 = nn.Softmax(dim=-1)
+    self.softmax2 = nn.Softmax(dim=-1)
+    self.softmax3 = nn.Softmax(dim=-1)
+
+
 
   def forward(self, x):
     x = self.fl(x)
     x = F.relu(self.fc1(x))
     #x = F.relu(self.fc2(x))
-    x = self.fc3(x)
-    x = self.softmax(x)
+    x = F.relu(self.fc3(x)(
 
+    x1 = self.fc4_1(x)
+    x2 = self.fc4_2(x)
+    x3 = self.fc4_3(x)
+
+    x1 = self.softmax2(x1)
+    x2 = self.softmax2(x2)
+    x3 = self.softmax3(x3)
+    
+    x = []
+    for i in range(27):
+        x.append(x1[i%3] * x2[(i/3)%3] * x3[(i/9)%3)
+
+    x = torch.transpose(torch.stack(x, dim=0), 0, 1).to(self.torch_device)
     return x
 
 class Critic(nn.Module):
