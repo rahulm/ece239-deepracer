@@ -1,12 +1,13 @@
+from typing import List, Tuple
+
 from gym.envs.box2d import CarRacing
 
-from typing import List, Tuple
 
 class CarRacingSimple(CarRacing):
   """This extends OpenAI gym's CarRacing environment.
 Changes:
 - Replaces the observation space with an arbitrarily chosen set of simpler
-values, without an image.
+values, without an image. (TODO IMPLEMENTATION)
 - Replaces the continuous action space with a discrete one.
   """
 
@@ -50,7 +51,3 @@ Parameters:
     
     continuous_action = self.ACTION_MAP[action]
     return super().step(continuous_action)
-
-
-  
-
