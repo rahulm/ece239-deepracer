@@ -9,6 +9,7 @@ from ppo import PPO
 def save_ppo_checkpoint(
   exp_dir: Text,
   epoch: int,
+  loss: float,
   ppo: PPO
 ) -> None:
   os.makedirs(exp_dir, exist_ok=True)
@@ -16,7 +17,8 @@ def save_ppo_checkpoint(
 
   checkpoint: Dict[Text, Any] = {
     "epoch": epoch,
-    "env": str(ppo.env)
+    "env": str(ppo.env),
+    "loss": loss
   }
 
   for model_name, model, model_opt in [
