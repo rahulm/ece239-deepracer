@@ -17,20 +17,6 @@ class PPO():
     envoriment. 
     """
 
-    # NOTE: may want to move __get_env_space_info into a utils file
-    def __get_env_space_info(self, env_space, metadata_custom_space):
-        if metadata_custom_space:
-            space_discrete = (metadata_custom_space["type"] == "discrete")
-        else:
-            space_discrete = isinstance(env_space, gym.spaces.Discrete)
-        
-        if metadata_custom_space and ("size" in metadata_custom_space):
-            space_size = metadata_custom_space["size"]
-        else:
-            space_size = ac_utils.get_generic_space_size(env_space)
-        
-        return space_discrete, space_size
-
     def __init__(self,
         env,
         config: Config,
@@ -49,12 +35,12 @@ class PPO():
         
         self.env = env
 
-        self.act_discrete, self.act_size = self.__get_env_space_info(
+        self.act_discrete, self.act_size = ac_utils.get_env_space_info(
             self.env.action_space,
             self.env.metadata.get("custom_action_space", None)
         )
 
-        self.obs_discrete, self.obs_size = self.__get_env_space_info(
+        self.obs_discrete, self.obs_size = ac_utils.get_env_space_info(
             self.env.observation_space,
             self.env.metadata.get("custom_observation_space", None)
         )
@@ -76,11 +62,15 @@ class PPO():
         self.pi = actor.to(self.torch_device)
         self.critic = critic.to(self.torch_device)
         self.optimizer_pi = torch.optim.Adam(
-            self.pi.parameters(),
+            self.pi.custom_parameters
+            if hasattr(self.pi, "custom_parameters")
+            else self.pi.parameters(),
             lr=self.config.actor_critic["actor"]["learning_rate"]
         )
         self.optimizer_critic = torch.optim.Adam(
-            self.critic.parameters(),
+            self.critic.custom_parameters
+            if hasattr(self.critic, "custom_parameters")
+            else self.critic.parameters(),
             lr=self.config.actor_critic["critic"]["learning_rate"]
         )
 
