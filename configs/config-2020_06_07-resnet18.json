@@ -1,0 +1,21 @@
+{
+  "ppo_hyperparameters": {
+    "epsilon" : 0.2,
+    "discount_factor" : 0.9,
+    "delta": 0.95,
+
+    "actor_critic" : {
+      "actor" : {
+        "learning_rate" : 0.0001
+      },
+      "critic" : {
+        "learning_rate" : 0.0001,
+        "alpha" : 0.75
+      }
+    }
+  },
+
+  "training" : {
+    "num_epochs" : 1500
+  }
+}
