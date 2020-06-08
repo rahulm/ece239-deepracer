@@ -56,7 +56,10 @@ class PPO():
         self.entropy_coef: float = self.config.ppo.get("entropy_coef", 1)
         self.vf_coef: float = self.config.ppo.get("vf_coef", 1)
 
-        self.delta: float = self.config.ppo.get("delta", 1)
+        self.delta: float = self.config.ppo.get(
+            "gae_parameter",
+            self.config.ppo.get("delta", 1)
+        )
         
         self.alpha: float = self.config.actor_critic["critic"]["alpha"]
         self.pi = actor.to(self.torch_device)
