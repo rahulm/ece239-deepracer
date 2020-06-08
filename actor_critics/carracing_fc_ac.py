@@ -65,7 +65,7 @@ class Actor(nn.Module):
     for b in range(num_batches):
       xprods.append(torch.cartesian_prod(x1[b], x2[b], x3[b]))
     xprods = torch.stack(xprods)
-    x = xprods[:, 0] * xprods[:, 1] * xprods[:, 2]
+    x = xprods[:, :, 0] * xprods[:, :, 1] * xprods[:, :, 2]
     
     return x
 
