@@ -1,6 +1,8 @@
 # ece239-deepracer
 An implementation of the AWS DeepRacer PPO algo, for Reinforcement Learning (ECE 239AS) under Prof. Lin Yang at UCLA.
 
+By Rahul Malavalli, Glen Meyerowitz, and Joshua Vendrow.
+
 
 ### Required Functions
 1. Generate environment (race track of the form y = f(x) over some domain x = [x_min, x_max]
